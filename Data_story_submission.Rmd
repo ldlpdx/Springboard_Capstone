@@ -1,0 +1,299 @@
+---
+title: "Every 15 Minutes"
+author: "L Lathrop"
+date: "1/19/2017"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+In the summer of 2012, more than 100 maurauders on horseback crossed from Chad into Cameroon's Bouba Ndjidah National park with one mission: to kill as many elephants as possible without getting caught. Using rocket-propelled grenades and AK-47s, they mowed down hundreds of elephants, decimating entire herds, all for one reason: ivory.  
+
+The illegal killing of elephants in Africa for their ivory takes places sometimes on a small scale, with poisoned watermelons, and other times on a large scale, using belt-fed automatic weapons. But regardless of the method, when an elephant comes into contact with a poacher, more often than not, the poacher gets what he came for. This is why between 2010 and 2012 alone, some 100,000 elephants were slaughtered. There only "crime" that they hold the ivory that the world cannot seem to resist.  
+
+This project seeks to understand the socio-economic factors that may contribute to poaching. It is crucial for us to understand these contributing factors so that they may be remedied, thus allowing for the continuation of elephants in the wild. For it has been estimated that, at the current rate of killing, all elephants in the wild will be gone within 10 years.  
+
+Several researchers have studied the problem, and their findings will be taken into account in the model. For instance, Lemieux and Clark (2009) studied the effect of regulated and unregulated markets and showed that the presence of unregulated markets, either in-country or in a bordering country, had a significant impact on poaching activity.
+
+The initial dataset included socio-economic and governance data on 34 countries with elephant populations in Central, Western, Eastern, and Southern Africa. These data came from the International Monetary Fund (IMF), the UN Development Programme (UNDP), the Unesco Institute for Statistics, The World Bank, and Transparency International (see the codebook for specifics). Information regarding regulated and unregulated ivory markets in Africa came from Lemieux and Clark (2009), and conflict data came from the Uppsala Conflict Data Programme (UCDP). Data concerning elephant populations and poaching came from the Monitoring the Illegal Killing of Elephants (MIKE) program of CITES.  
+  
+Together, these data will allow a comprehensive assessment of one side of the poaching equation, namely, conditions in Africa tat may contribute to illegal elephant killing. What these data do not address is the demand side of the equation. That is, we do not have the benefit of trafficking and sales data whereby illegal ivory is transmitted and sold to consumers, largely in Asian and Southeast Asian countries. Unfortunately such data is not readily accessible and gathering such data would be beyond the scope of this project.  
+  
+### 1. Read in the necessary packages
+
+```{r message=FALSE}
+# LOAD IN THE NECESSARY PACKAGES
+library(ggplot2)
+library(ggthemes)
+library(GGally)
+library(grDevices)
+library(colorRamps)
+library(dplyr)
+library(RColorBrewer)
+library(reporttools)
+library(stargazer)
+library(fpp)
+library(xtable)
+library(plotly)
+library(Cairo)
+library(MASS)
+library(car)
+library(Amelia)
+library(corrplot)
+library(caret)
+options(xtable.floating = FALSE)
+options(xtable.timestamp = "")
+```  
+
+### 2. Data preprocessing
+
+```{r cache=TRUE}
+
+# READ IN DATASET
+elephants <- read.csv("elephant_master_reduced.csv", header = TRUE)
+```
+```{r}
+sapply(elephants, function(x) sum(is.na(x)))
+
+# CREATE VARIABLES TO ASSESS LEVEL OF ILLEGAL KILLING OF ELEPHANTS
+elephants$High.Illegal <- factor(with(elephants, ifelse((Percent.Illegal > 0.5), 1, 0)))
+table(elephants$High.Illegal)
+
+```  
+There are several missing values in the dataset, so imputation will be necessary. 
+
+Note that the mean number of elephant carcasses for a given year is `r round(mean(elephants$Tot.Carcasses, na.rm=TRUE), digits=2)` and the mean number of illegal carcasses is `r round(mean(elephants$Illegal.Carcasses, na.rm=TRUE), digits=2)`, indicating that approximately half of all elephant deaths recorded are due to illegal poaching.  
+  
+In conducting exploratory data analysis, we will focus on indicators by region. This is because there are significant differences in the Proportion of Illegally Killed Elephants (PIKE) for each region, so looking at patterns by region may provide some indication of factors that may be contributing.
+
+  
+### 3. Socio-economic indicators by region
+```{r fig.align='center'}
+p <- plot_ly(elephants, x = country, y = Resource.Depletion, 
+             color = region, type = "box",
+                width=640, height = 480) %>%
+  layout(title = 'Depletion of Natural Resources (% of GNI)')
+p
+```  
+  
+  
+Resource depletion is a monetary expression of the level of energy, mineral, and forest depletion. We see from this plot that the countries of Central Africa have significantly higher resource depletion, on average, than the countries of other regions.
+```{r fig.align="center"}
+
+PCPI <- plot_ly(elephants, x = country, y = PCPI, color = region, type = "box",
+                width=640, height = 480) %>%
+  layout(title = 'Inflation, Average Consumer Prices')
+PCPI
+```  
+  
+  
+Inflation appears low, for the most part, in African countries. The exceptions are the Democratic Republic of Congo and Guinea.
+  
+  
+```{r fig.align="center"}
+GNI <- plot_ly(elephants, x = country, y = GNI, 
+               color = region, type = "box",
+                width=640, height = 480) %>%
+  layout(title = 'Gross National Income')
+GNI
+```  
+  
+  
+With a few exceptions, the gross national income, which is the total of the domestic and foreign output of citizens of a country, appears to be highest in the countries of Southern Africa. At the same time, countries with lower GNI appear to have more stable GNIs.
+
+  
+```{r fig.align="center"}
+International.Dev.Aid <- plot_ly(elephants, x = country, 
+                                 y = International.Dev.Aid, color = region, 
+                                 type = "box",
+                width=640, height = 480) %>%
+  layout(title = 'International Development Aid (in USD millions)')
+International.Dev.Aid
+```
+  
+  
+  
+```{r fig.align="center"}
+pop.below.nat <- plot_ly(elephants, x = country, y = Pop.Below.National.Poverty, type = 'scatter', mode = 'markers', color = region, 
+             marker = list(opacity = 0.8)) %>%
+  layout(title = 'Percentage Below National Poverty Line')
+pop.below.nat
+```
+  
+ 
+The mean percentage of population below the national overty level is 0.46, and it appears that about two-thirds of the countries, particularly those in Western and Southern Africa, are above the mean. 
+  
+  
+```{r fig.align="center"}
+pop.below.125 <- plot_ly(elephants, x = country, y = PPP.125.day, type = 'scatter', mode = 'markers', color = region, 
+                         marker = list(opacity = 0.8)) %>%
+  layout(title = 'Percentage Below National USD 1.25 per Day')
+pop.below.125
+```
+  
+  
+  
+The mean percentage of people living on less that USD 1.25 per day is 0.44. From the above graphic, it appears that about hallf fall above the mean and half below.  
+  
+  
+### 4. Governance indicators by region 
+  
+Governance indicators reflect the degree to which government is responsive to its citizens. These indicators include voice accountability, indicating the degree to which citizens may participate in choosing their government; political stability, meaning an absence of violence; governement effectiveness, a reflection of the quality of public services; rule of law, the degree to which individuals have confidence in and abide by the rules of society; and corruption control, the extent to which public power is exercised for private gain.   
+  
+```{r warning=FALSE, fig.align='center' }
+elephantsFC <- filter(elephants, subregionid=="FC")
+elephantsFW <- filter(elephants, subregionid=="FW")
+elephantsFE <- filter(elephants, subregionid=="FE")
+elephantsFS <- filter(elephants, subregionid=="FS")
+
+governanceFC <- ggplot(data=elephantsFC, aes(x=year))+
+  geom_line(aes(y=Voice.Accountability), color="cadetblue3")+
+  geom_line(aes(y=Political.Stability), color="coral")+
+  geom_line(aes(y=Government.Effectiveness), color="aquamarine")+
+  geom_line(aes(y=Rule.Law), color="gold")+  
+  geom_line(aes(y=Corruption.Control), color="palegreen")+
+  geom_line(aes(y=Reg.Quality), color="darkorchid1")+
+  ylim(-2, 3) + xlab(NULL) + ylab(NULL) +
+  ggtitle("Governance Indicators for Central Africa") + theme_bw()
+governanceFC + facet_wrap(~country, ncol = 4)
+```
+![](images/legend.png)  
+```{r warning=FALSE, fig.align='center'}
+governanceFW <- ggplot(data=elephantsFW, aes(x=year))+
+  geom_line(aes(y=Voice.Accountability), color="cadetblue3")+
+  geom_line(aes(y=Political.Stability), color="coral")+
+  geom_line(aes(y=Government.Effectiveness), color="aquamarine")+
+  geom_line(aes(y=Rule.Law), color="gold")+
+  geom_line(aes(y=Corruption.Control), color="palegreen")+
+  geom_line(aes(y=Reg.Quality), color="darkorchid1")+
+  ylim(-2, 3) + xlab(NULL) + ylab(NULL) +
+  ggtitle("Governance Indicators for Western Africa")+ theme_bw()
+governanceFW + facet_wrap(~country, ncol = 4)
+```
+![](images/legend.png)  
+```{r warning=FALSE, fig.align='center'}
+governanceFE <- ggplot(data=elephantsFE, aes(x=year))+
+  geom_line(aes(y=Voice.Accountability), color="cadetblue3")+
+  geom_line(aes(y=Political.Stability), color="coral")+
+  geom_line(aes(y=Government.Effectiveness), color="aquamarine")+
+  geom_line(aes(y=Rule.Law), color="gold")+
+  geom_line(aes(y=Corruption.Control), color="palegreen")+
+  geom_line(aes(y=Reg.Quality), color="darkorchid1")+
+  ylim(-2, 3) + xlab(NULL) + ylab(NULL) +
+  ggtitle("Governance Indicators for Eastern Africa")+ theme_bw()
+governanceFE + facet_wrap(~country, ncol = 4)
+```
+![](images/legend.png)
+```{r warning=FALSE, fig.align='center'}
+governanceFS <- ggplot(data=elephantsFS, aes(x=year))+
+  geom_line(aes(y=Voice.Accountability), color="cadetblue3")+
+  geom_line(aes(y=Political.Stability), color="coral")+
+  geom_line(aes(y=Government.Effectiveness), color="aquamarine")+
+  geom_line(aes(y=Rule.Law), color="gold")+
+  geom_line(aes(y=Corruption.Control), color="palegreen")+
+  geom_line(aes(y=Reg.Quality), color="darkorchid1")+
+  ylim(-2, 3) + xlab(NULL) + ylab(NULL) +
+  ggtitle("Governance Indicators for Southern Africa")+ theme_bw()
+governanceFS + facet_wrap(~country, ncol = 4)
+```  
+![](images/legend.png)  
+  
+From these visualizations we can see that governance indicators show a great deal of volatility, especially with respect to the countries of Central Africa and several of those in Southern Africa.
+  
+### 5. Normalize/Standardize the data
+
+```{r fig.align="center"}
+# NORMALIZE AND STANDARDIZE THE DATA
+centered.elephants <- data.frame(scale(elephants[,c(9:28,33:38,41:47)]))
+centered.elephants <- cbind(elephants[,c(1:8, 29:32,39:40, 48)], centered.elephants)
+centered.elephants$High.Illegal <- as.integer(centered.elephants$High.Illegal)
+
+summary(centered.elephants)
+```  
+  
+Several of the variables still appear to be highly skewed, so further transformation will be required, as the `Amelia II` package imputes missing values assuming a normal distribution.
+
+## 6. Check for correlated variables
+
+```{r}
+# EXAMINE DATA FOR HIGHLY CORRELATED VARIABLES
+clrs <- brewer.pal(10, "Spectral")
+cors <- cor(centered.elephants[,9:47], use = "pairwise")
+corrplot <- corrplot.mixed(cors, col = clrs, number.cex=0.3,
+                     tl.pos="lt", tl.cex=0.5, tl.col="black",
+                     tl.srt=45)
+```
+```{r}
+# REMOVE HIGHLY CORRELATED VARIABLES
+pd.elephants <- subset(centered.elephants, 
+                       subset=TRUE, select=c(1:22,24:28,30:34,36:47))
+
+```  
+  
+As we can see, there are a significant number of highly correlated variables. Linear regression was run on each of them with `illegal carcasses` as the dependent variable to determine which of the correlated variables should be removed. When two variables were compared, the variable with the highest $$R^2$$ was retained. Three variables were deleted from the dataset including `Human Development Index`, `Total Population`, and `Corruption Perception Index`. We also see that of the observed values of total elephant carasses in relation to illegal carcasses, 252 observations meet the condition of more than 50% of the total were killed illegally.
+  
+### 7. Create training and testing datasets
+```{r cache=TRUE, warning=FALSE, message=FALSE}
+# SEPARATE DATA INTO TRAINING AND TESTING SETS
+inVal <- createDataPartition(pd.elephants$High.Illegal, p = 0.6, list=FALSE)
+eleph.train <- pd.elephants[inVal,]
+eleph.test <- pd.elephants[-inVal,]
+```
+  
+Because there is a low number of observations relative to the number of variables, the training dataset threshold was determined to be 60%.  
+  
+### 8. Impute missing values to training and testing sets
+```{r cache=TRUE, warning=FALSE, message=FALSE}
+# IMPUTE MISSING VALUES
+library(snow)
+set.seed(1357)
+elephants.out.train <- amelia(eleph.train, m=1, frontend = FALSE, 
+                              idvars = c("ISO2", "ISO3", "region", 
+                                         "subregionid", "cap.lat", "cap.long"),
+                              ts = "year", cs = "country", 
+                              polytime = 0, intercs = TRUE, p2s = 1, 
+                              parallel="snow", ncpus = 3, 
+                             empri = .01*nrow(eleph.train))
+
+elephants.out.test <- amelia(eleph.test, m=1, frontend = FALSE, 
+                              idvars = c("ISO2", "ISO3", "region", 
+                                         "subregionid", "cap.lat", "cap.long"),
+                              ts = "year", cs = "country", 
+                              intercs = TRUE, p2s = 1, 
+                              parallel="snow", ncpus = 3, 
+                             empri = .015*nrow(eleph.test))
+
+# Amelia II: Multiple Imputation
+# (Version 1.7.4, built: 2015-12-05)
+# Copyright (C) 2005-2017 James Honaker, Gary King and Matthew Blackwell
+# Refer to http://gking.harvard.edu/amelia/ for more information
+```  
+  
+### 9. Spot check variables with high missingness  
+Running the `tscs` plots will allow us to determine whether the imputation of missing values seems reasonable.  
+```{r fig.align="center", fig.height=6, warning=FALSE, message=FALSE}
+# SPOT CHECK VARIABLES WITH HIGH MISSINGNESS
+par(mfrow=c(3,2))
+tscsPlot(elephants.out.train, cs = "Kenya", main = "Kenya",
+          var = "Resource.Depletion", ylim = c(-2,0))
+tscsPlot(elephants.out.train, cs = "Botswana", main = "Botswana",
+         var = "Resource.Depletion", ylim = c(-2,0))
+tscsPlot(elephants.out.train, cs = "Cameroon", main = "Cameroon",
+         var = "Definite.Possible", ylim = c(-2,0))
+tscsPlot(elephants.out.train, cs = "Chad", main = "Chad",
+         var = "Definite.Possible", ylim = c(-2,0))
+tscsPlot(elephants.out.train, cs = "Zimbabwe", main = "zimbabwe",
+         var = "Primary.ed.enrollment", ylim = c(-2,2))
+tscsPlot(elephants.out.train, cs = "Congo Republic", main = "Congo Republic",
+         var = "Primary.ed.enrollment", ylim = c(-2,2))
+```  
+  
+The plots show that, although there is some variation to the imputation, overall the values imputed seem reasonable. From here, we will begin modeling the data in order to determine those factors that may contribute to elephant poaching.
+
