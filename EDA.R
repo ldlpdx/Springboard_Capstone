@@ -76,7 +76,16 @@ elephantsFW <- filter(elephants, subregionid=="FW")
 elephantsFE <- filter(elephants, subregionid=="FE")
 elephantsFS <- filter(elephants, subregionid=="FS")
 
-png("governanceFC.png", height = 1080, width = 680)
+round(mean(elephantsFC$PIKE.regional, na.rm = TRUE), digits = 2)
+mean(elephantsFW$PIKE.regional, na.rm = TRUE)
+mean(elephantsFE$PIKE.regional, na.rm = TRUE)
+mean(elephantsFS$PIKE.regional, na.rm = TRUE)
+round(mean(elephantsFC$Corruption.Control, na.rm = TRUE), digits = 2)
+round(mean(elephantsFW$Corruption.Control, na.rm = TRUE), digits = 2)
+round(mean(elephantsFE$Corruption.Control, na.rm = TRUE), digits = 2)
+round(mean(elephantsFS$Corruption.Control, na.rm = TRUE), digits = 2)
+
+png("governanceFC.png", height = 680, width = 680)
 governanceFC <- ggplot(data=elephantsFC, aes(x=year))+
   geom_line(aes(y=Voice.Accountability), color="cadetblue3")+
   geom_line(aes(y=Political.Stability), color="coral")+
@@ -84,9 +93,9 @@ governanceFC <- ggplot(data=elephantsFC, aes(x=year))+
   geom_line(aes(y=Rule.Law), color="gold")+
   geom_line(aes(y=Corruption.Control), color="palegreen")+
   geom_line(aes(y=Reg.Quality), color="darkorchid1")+
-  ylim(-2, 3) + xlab(NULL) + ylab(NULL) +
+  ylim(-2, 0.5) + xlab(NULL) + ylab(NULL) +
   ggtitle("Governance indicators for Central Africa") + theme_bw()
-governanceFC + facet_wrap(~country, ncol = 4)
+governanceFC + facet_wrap(~country, ncol = 3)
 dev.off()
 
 png("governanceFW.png", height = 1080, width = 680)
@@ -134,7 +143,7 @@ names(elephants)
 centered.elephants <- data.frame(scale(elephants[,c(9:28,33:38,41:47)]))
 centered.elephants <- cbind(elephants[,c(1:8, 29:32,39:40, 48)], centered.elephants)
 str(centered.elephants)
-summary(centered.elephants)
+names(centered.elephants)
 
 centered.elephants$High.Illegal <- as.integer(centered.elephants$High.Illegal)
 
@@ -142,12 +151,13 @@ centered.elephants$High.Illegal <- as.integer(centered.elephants$High.Illegal)
 
 # EXAMINE DATA FOR HIGHLY CORRELATED VARIABLES
 clrs <- brewer.pal(10, "Spectral")
-cors <- cor(centered.elephants[,9:47], use = "pairwise")
+cors <- cor(centered.elephants[,9:48], use = "pairwise")
 quartz()
-corrplot <- corrplot.mixed(cors, col = clrs, number.cex=0.3,
+png("corrplot.png", height = 680, width = 680)
+corr.plot <- corrplot.mixed(cors, col = clrs, number.cex=0.3,
                      tl.pos="lt", tl.cex=0.5, tl.col="black",
                      tl.srt=45)
-
+dev.off()
 
 # RUN MODELS TO DETERMINE WHICH OF THE CORRELATED VARIABLES TO KEEP
 names(centered.elephants)
@@ -211,7 +221,7 @@ names(centered.elephants)
 pd.elephants <- subset(centered.elephants, subset=TRUE, select=c(1:22,24:28,30:34,36:48))
 summary(pd.elephants)
 # SEPARATE DATA INTO TRAINING AND TESTING SETS
-inVal <- createDataPartition(pd.elephants$High.Illegal, p = 0.7, list=FALSE)
+inVal <- createDataPartition(pd.elephants$High.Illegal, p = 0.6, list=FALSE)
 eleph.train <- pd.elephants[inVal,]
 eleph.test <- pd.elephants[-inVal,]
 
@@ -229,6 +239,13 @@ elephants.out.train <- amelia(eleph.train, m=1, frontend = FALSE,
                               parallel="snow", ncpus = 3, 
                              empri = .01*nrow(centered.elephants))
 
+elephants.out.test <- amelia(eleph.test, m=1, frontend = FALSE, 
+                                                idvars = c("ISO2", "ISO3", "region", 
+                                                           "subregionid", "cap.lat", "cap.long"),
+                                                ts = "year", cs = "country", 
+                                                polytime = 0, intercs = TRUE, p2s = 1, 
+                                                parallel="snow", ncpus = 3, 
+                                                empri = .15*nrow(centered.elephants))
 
 # SPOT CHECK IMPUTATIONS
 quartz()

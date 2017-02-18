@@ -300,6 +300,44 @@ summary(eleph.fit2$imp5)
 pFtest(eleph.fit1$imp2, eleph.fit2$imp1)
 
 
+# CREATE GRAPHS OF INDICATOR MEANS
+means <- read.csv("eleph_mean.csv", header = TRUE)
+names(means)
+mcols <- brewer.pal(4, "Spectral")
+corrupt <- ggplot(means, aes(x=Country, y=Corruption.Control, color=Country))+
+  geom_point(size=4) +
+  ylim(-1, 1) +
+  labs(y=NULL, x=NULL)
+corrupt <- corrupt + theme_bw()
+corrupt
+svg("corrupt.svg")
+corrupt
+dev.off()
+regq <- ggplot(means, aes(x=Country, y=Reg.Quality, color=Country))+
+  geom_point(size=4) +
+  ylim(-1, 1) +
+  labs(y=NULL, x=NULL)
+regq <- regq + theme_bw()
+svg("regq.svg")
+regq
+dev.off()
+illegal <- ggplot(means, aes(x=Country, y=Illegal, color=Country))+
+  geom_point(size=4) +
+  ylim(-1, 1) +
+  labs(y=NULL, x=NULL)
+illegal <- illegal + theme_bw()
+svg("illegal.svg")
+illegal
+dev.off()
+inflat <- ggplot(means, aes(x=Country, y=PCPI, color=Country))+
+  geom_point(size=4) +
+  ylim(-1, 1) +
+  labs(y=NULL, x=NULL)
+inflat <- inflat + theme_bw()
+svg("inflat.svg")
+inflat
+dev.off()
+
 
 
 
