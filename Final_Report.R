@@ -34,6 +34,7 @@ outTest <- read.csv("outTest1.csv", header = TRUE)
 names(outTrain)
 str(outTrain)
 outTrain$Reg.Market <- as.numeric(outTrain$Reg.Market)
+outTestSub$Reg.Market <- as.numeric(outTestSub$Reg.Market)
 outTrain$Unreg.Market <- as.numeric(outTrain$Unreg.Market)
 outTrain$Reg.Market.Bordering <- as.numeric(outTrain$Reg.Market.Bordering)
 outTrain$Unreg.Market.Bordering <- as.numeric(outTrain$Unreg.Market.Bordering)
@@ -96,6 +97,7 @@ modelRF <- train(Percent.Illegal ~ ., data=outTrainSub,
                  importance=TRUE)
 modelRF
 predRF <- predict(modelRF, newdata = outTestSub)
+corRF <- cor(predRF, outTestSub$Percent.Illegal, method = "spearman")
 png("RFvarimp.png", height = 680, width = 680)
 plot(varImp(modelRF))
 dev.off()
@@ -126,7 +128,8 @@ library(Cubist)
 set.seed(100)
 modelCubist <- train(Percent.Illegal ~ ., data = outTrainSub,
                      method = "cubist",
-                     importance = TRUE)
+                     importance = TRUE, 
+                     trControl = fitControl)
 
 predCubist <- predict(modelCubist, newdata = outTestSub)
 measureCubist <- postResample(predCubist, outTestSub$Percent.Illegal)
@@ -143,6 +146,7 @@ earthMars <- earth(Percent.Illegal ~ ., data = outTrainSub)
 MarsRMSE <- sqrt(1 - (0.6888798 * sd(outTrainSub$Percent.Illegal)))
 predMars <- predict(earthMars, newdata = outTestSub)
 measureMars <- postResample(predMars, outTestSub$Percent.Illegal)
+spCorMars <- cor(predMars, outTestSub$Percent.Illegal, method = "spearman")
 earthMars
 evimp(earthMars)
 
